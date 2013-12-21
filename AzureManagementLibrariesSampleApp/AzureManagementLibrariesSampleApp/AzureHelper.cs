@@ -1,39 +1,56 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.WindowsAzure.Common;
-using Microsoft.WindowsAzure.Common.Internals;
-using Microsoft.WindowsAzure;
-using Microsoft.WindowsAzure.Management.WebSites;
-using Microsoft.WindowsAzure.Management.WebSites.Models;
-using Microsoft.WindowsAzure.Management.Sql;
-using Microsoft.WindowsAzure.Management.Sql.Models;
-using System.Configuration;
-
-namespace AzureManagementLibrariesSampleApp
+﻿namespace AzureManagementLibrariesSampleApp
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Configuration;
+    using System.Linq;
+    using System.Security.Cryptography.X509Certificates;
+    using Microsoft.WindowsAzure;
+    using Microsoft.WindowsAzure.Management.Sql;
+    using Microsoft.WindowsAzure.Management.Sql.Models;
+    using Microsoft.WindowsAzure.Management.WebSites;
+    using Microsoft.WindowsAzure.Management.WebSites.Models;
+
     /// <summary>
     /// Вся логика по работе с Windows Azure инкапсулирована в этом классе.
     /// </summary>
     public class AzureHelper
     {
+        /// <summary>
+        /// Строка, содержашая закодированный в Base64String сертификат.
+        /// TODO: укажите свой сертификат.
+        /// </summary>
+        private const string Certificate = "";
+
+        /// <summary>
+        /// Идентификатор подписки.
+        /// TODO: укажите свой идентификатор подписки.
+        /// </summary>
+        private const string SubscriptionId = "";
+
+        /// <summary>
+        /// Ключ в конфигурационном файле, который отвечает за имя SQL Server.
+        /// </summary>
         private const string AppConfigSqlServerName = "SqlServerName";
+
+        /// <summary>
+        /// Клиент доступа к управлению веб-сайтами Windows Azure.
+        /// </summary>
         private WebSiteManagementClient _websitesClient;
+
+        /// <summary>
+        /// Клиент доступа к управлению SQL Azure.
+        /// </summary>
         private SqlManagementClient _sqlClient;
-        private CertificateCloudCredentials _certificate;
 
-        // TODO: укажите свой сертификат и идентификатор подписки.
-        private const string certificate = "";
-        private const string id = "";
-
+        /// <summary>
+        /// Конструктор без параметров.
+        /// </summary>
         public AzureHelper()
         {
-            _certificate = new CertificateCloudCredentials(id, new X509Certificate2(Convert.FromBase64String(certificate)));
-            _websitesClient = CloudContext.Clients.CreateWebSiteManagementClient(_certificate);
-            _sqlClient = CloudContext.Clients.CreateSqlManagementClient(_certificate);
+            CertificateCloudCredentials certificate = new CertificateCloudCredentials(SubscriptionId, new X509Certificate2(Convert.FromBase64String(Certificate)));
+            _websitesClient = CloudContext.Clients.CreateWebSiteManagementClient(certificate);
+            _sqlClient = CloudContext.Clients.CreateSqlManagementClient(certificate);
         }
 
         /// <summary>
@@ -43,17 +60,10 @@ namespace AzureManagementLibrariesSampleApp
         public string[] GetWebSpaces()
         {
             var task = _websitesClient.WebSpaces.ListAsync();
-            try
-            {
-                task.Wait();
-                WebSpacesListResponse webSpaces = task.Result;
-                var ret = webSpaces.Select(w => w.Name);
-                return ret.ToArray();
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
+            task.Wait();
+            WebSpacesListResponse webSpaces = task.Result;
+            var ret = webSpaces.Select(w => w.Name);
+            return ret.ToArray();
         }
 
         /// <summary>
@@ -74,6 +84,7 @@ namespace AzureManagementLibrariesSampleApp
                     break;
                 }
             }
+
             return siteExist;
         }
 
@@ -125,14 +136,7 @@ namespace AzureManagementLibrariesSampleApp
 
             var task = _websitesClient.WebSites.CreateAsync(webSpaceName, parameters);
 
-            try
-            {
-                task.Wait();
-            }
-            catch (AggregateException exception)
-            {
-                throw;
-            }
+            task.Wait();
         }
 
         /// <summary>
@@ -147,26 +151,19 @@ namespace AzureManagementLibrariesSampleApp
 
             var task = _websitesClient.WebSites.DeleteAsync(webSpaceName, siteName, true, true);
 
-            try
-            {
-                task.Wait();
-            }
-            catch (AggregateException exception)
-            {
-                throw;
-            }
+            task.Wait();
         }
 
         /// <summary>
         /// Создать БД SQLAzure.
         /// </summary>
-        /// <param name="DBName">Имя базы данных.</param>
-        public void CreateDB(string DBName)
+        /// <param name="dbName">Имя базы данных.</param>
+        public void CreateDb(string dbName)
         {
             string serverName = ConfigurationManager.AppSettings[AppConfigSqlServerName];
             var parameters = new DatabaseCreateParameters
             {
-                Name = DBName,
+                Name = dbName,
                 CollationName = "SQL_Latin1_General_CP1_CI_AS",
                 Edition = "Web",
                 MaximumDatabaseSizeInGB = 1
@@ -174,34 +171,20 @@ namespace AzureManagementLibrariesSampleApp
 
             var task = _sqlClient.Databases.CreateAsync(serverName, parameters);
 
-            try
-            {
-                task.Wait();
-            }
-            catch (AggregateException exception)
-            {
-                throw;
-            }
+            task.Wait();
         }
 
         /// <summary>
         /// Удалить БД SQLAzure.
         /// </summary>
-        /// <param name="DBName">Имя базы данных.</param>
-        public void RemoveDB(string DBName)
+        /// <param name="dbName">Имя базы данных.</param>
+        public void RemoveDb(string dbName)
         {
             string serverName = ConfigurationManager.AppSettings[AppConfigSqlServerName];
 
-            var task = _sqlClient.Databases.DeleteAsync(serverName, DBName);
+            var task = _sqlClient.Databases.DeleteAsync(serverName, dbName);
 
-            try
-            {
-                task.Wait();
-            }
-            catch (AggregateException exception)
-            {
-                throw;
-            }
+            task.Wait();
         }
 
 
@@ -227,20 +210,22 @@ namespace AzureManagementLibrariesSampleApp
                 CreateSite(webSiteName);
 
                 // Создадим SQL Azure БД.
-                CreateDB(webSiteName);
+                CreateDb(webSiteName);
 
                 // TODO: Опубликуем сайт, свяжем сайт и БД.
-
             }
             catch (Exception ex)
             {
                 operationDetails = ex.ToString();
 
                 // Удалим всё что удалось создать, т.к. в целом операция была неуспешной.
-                RemoveDemoWebSite(webSiteName, out operationDetails);
+                string removeInfo;
+                RemoveDemoWebSite(webSiteName, out removeInfo);
+                operationDetails += removeInfo;
 
                 return false;
             }
+
             operationDetails = "Операция создания выполнена успешно.";
             return true;
         }
@@ -254,7 +239,7 @@ namespace AzureManagementLibrariesSampleApp
         public bool RemoveDemoWebSite(string webSiteName, out string operationDetails)
         {
             bool ret = true;
-            string exceptionsDetails = "";
+            string exceptionsDetails = string.Empty;
             try
             {
                 // Проверим есть ли что удалять.
@@ -273,16 +258,14 @@ namespace AzureManagementLibrariesSampleApp
 
             try
             {
-                // Создадим SQL Azure БД.
-                RemoveDB(webSiteName);
+                // Удалим SQL Azure БД.
+                RemoveDb(webSiteName);
             }
             catch (Exception ex)
             {
                 ret = false;
                 exceptionsDetails += ex;
             }
-
-            // TODO: Опубликуем сайт, свяжем сайт и БД.
 
             // Запишем информацию об исключения.
             if (!string.IsNullOrWhiteSpace(exceptionsDetails))
@@ -293,6 +276,7 @@ namespace AzureManagementLibrariesSampleApp
             {
                 operationDetails = "Операция удаления выполнена успешно.";
             }
+
             return ret;
         }
     }

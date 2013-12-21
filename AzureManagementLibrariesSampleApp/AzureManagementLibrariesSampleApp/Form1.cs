@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-
-namespace AzureManagementLibrariesSampleApp
+﻿namespace AzureManagementLibrariesSampleApp
 {
+    using System;
+    using System.Windows.Forms;
+
     public partial class Form1 : Form
     {
         public Form1()
@@ -34,7 +27,6 @@ namespace AzureManagementLibrariesSampleApp
         /// <param name="newOrRemove">true - создание, false - удаление.</param>
         private void ProcessOperation(bool newOrRemove)
         {
-            var a = new AzureHelper();
             if (String.IsNullOrWhiteSpace(WebSiteName))
             {
                 MessageBox.Show("Имя сайта не указано.");
@@ -43,13 +35,23 @@ namespace AzureManagementLibrariesSampleApp
 
             string info;
             bool success;
-            if (newOrRemove)
+
+            try
             {
-                success = a.NewDemoWebSite(WebSiteName, out info);
+                var a = new AzureHelper();
+                if (newOrRemove)
+                {
+                    success = a.NewDemoWebSite(WebSiteName, out info);
+                }
+                else
+                {
+                    success = a.RemoveDemoWebSite(WebSiteName, out info);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                success = a.RemoveDemoWebSite(WebSiteName, out info);
+                info = ex.ToString();
+                success = false;
             }
 
             MessageBox.Show(info, "Внимание!", MessageBoxButtons.OK, success ? MessageBoxIcon.Information : MessageBoxIcon.Error);
